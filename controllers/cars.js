@@ -1,15 +1,34 @@
 const mongodb = require('../db/connect');
 const { ObjectId } = require('mongodb');
 
+const validateCar = (req, res) => {
+  const { make, model, year, color, owner } = req.body;
+
+  if (!make || !model || !year || !color || !owner) {
+    res.status(400).json({
+      message: 'All fields are required: make, model, year, color, owner'
+    });
+    return false;
+  }
+
+  if (typeof year !== 'number') {
+    res.status(400).json({
+      message: 'Year must be a number'
+    });
+    return false;
+  }
+
+  return true;
+};
+
 // GET ALL
 const getAll = async (req, res) => {
   try {
-    const result = await mongodb
+    const cars = await mongodb
       .getDb()
       .collection('cars')
-      .find();
-
-    const cars = await result.toArray();
+      .find()
+      .toArray();
 
     res.status(200).json(cars);
   } catch (err) {
@@ -22,14 +41,16 @@ const getSingle = async (req, res) => {
   try {
     const carId = new ObjectId(req.params.id);
 
-    const result = await mongodb
+    const car = await mongodb
       .getDb()
       .collection('cars')
-      .find({ _id: carId });
+      .findOne({ _id: carId });
 
-    const car = await result.toArray();
+    if (!car) {
+      return res.status(404).json({ message: 'Car not found' });
+    }
 
-    res.status(200).json(car[0]);
+    res.status(200).json(car);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -38,6 +59,8 @@ const getSingle = async (req, res) => {
 // CREATE
 const createCar = async (req, res) => {
   try {
+    if (!validateCar(req, res)) return;
+
     const car = {
       make: req.body.make,
       model: req.body.model,
@@ -51,9 +74,7 @@ const createCar = async (req, res) => {
       .collection('cars')
       .insertOne(car);
 
-    if (response.acknowledged) {
-      res.status(201).json(response);
-    }
+    res.status(201).json(response);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -62,6 +83,8 @@ const createCar = async (req, res) => {
 // UPDATE
 const updateCar = async (req, res) => {
   try {
+    if (!validateCar(req, res)) return;
+
     const carId = new ObjectId(req.params.id);
 
     const car = {
@@ -80,7 +103,7 @@ const updateCar = async (req, res) => {
     if (response.modifiedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Update failed');
+      res.status(404).json({ message: 'Car not found or no changes made' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -100,7 +123,7 @@ const deleteCar = async (req, res) => {
     if (response.deletedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Delete failed');
+      res.status(404).json({ message: 'Car not found' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

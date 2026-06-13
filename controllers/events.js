@@ -1,15 +1,27 @@
 const mongodb = require('../db/connect');
 const { ObjectId } = require('mongodb');
 
+const validateEvent = (req, res) => {
+  const { name, location, date, time, host } = req.body;
+
+  if (!name || !location || !date || !time || !host) {
+    res.status(400).json({
+      message: 'All fields are required: name, location, date, time, host'
+    });
+    return false;
+  }
+
+  return true;
+};
+
 // GET ALL
 const getAll = async (req, res) => {
   try {
-    const result = await mongodb
+    const events = await mongodb
       .getDb()
       .collection('events')
-      .find();
-
-    const events = await result.toArray();
+      .find()
+      .toArray();
 
     res.status(200).json(events);
   } catch (err) {
@@ -22,14 +34,16 @@ const getSingle = async (req, res) => {
   try {
     const eventId = new ObjectId(req.params.id);
 
-    const result = await mongodb
+    const event = await mongodb
       .getDb()
       .collection('events')
-      .find({ _id: eventId });
+      .findOne({ _id: eventId });
 
-    const event = await result.toArray();
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
 
-    res.status(200).json(event[0]);
+    res.status(200).json(event);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -38,6 +52,8 @@ const getSingle = async (req, res) => {
 // CREATE
 const createEvent = async (req, res) => {
   try {
+    if (!validateEvent(req, res)) return;
+
     const event = {
       name: req.body.name,
       location: req.body.location,
@@ -51,9 +67,7 @@ const createEvent = async (req, res) => {
       .collection('events')
       .insertOne(event);
 
-    if (response.acknowledged) {
-      res.status(201).json(response);
-    }
+    res.status(201).json(response);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -62,6 +76,8 @@ const createEvent = async (req, res) => {
 // UPDATE
 const updateEvent = async (req, res) => {
   try {
+    if (!validateEvent(req, res)) return;
+
     const eventId = new ObjectId(req.params.id);
 
     const event = {
@@ -80,7 +96,7 @@ const updateEvent = async (req, res) => {
     if (response.modifiedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Update failed');
+      res.status(404).json({ message: 'Event not found or no changes made' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -100,7 +116,7 @@ const deleteEvent = async (req, res) => {
     if (response.deletedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Delete failed');
+      res.status(404).json({ message: 'Event not found' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

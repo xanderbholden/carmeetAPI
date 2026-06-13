@@ -5,11 +5,11 @@ const doc = {
     title: 'Car Meet API',
     description: 'API for cars and car meet events'
   },
-  host: 'localhost:3000',
-  schemes: ['http']
+  host: 'carmeetapi.onrender.com',
+  schemes: ['https']
 };
 
 const outputFile = './swagger-output.json';
-const endpointsFiles = ['./server.js'];
+const endpointsFiles = ['./routes/index.js'];
 
 swaggerAutogen(outputFile, endpointsFiles, doc);
